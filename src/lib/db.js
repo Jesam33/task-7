@@ -1,3 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config(); // Load environment variables from .env file
+
+
+
 import mongoose from 'mongoose';
 
 export async function connectToMongoDB() {
@@ -6,13 +11,11 @@ export async function connectToMongoDB() {
     if (!uri) {
       throw new Error('DB_URL is not defined');
     }
-    
-    // Connect to MongoDB with options
-    await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      // Optionally include other options such as `useCreateIndex` or `useFindAndModify`
-    });
+
+    console.log('MongoDB URI:', uri); // Debugging line to ensure the URI is set
+
+    // Connect to MongoDB without deprecated options
+    await mongoose.connect(uri);
 
     console.log('Connected to Database');
   } catch (error) {
