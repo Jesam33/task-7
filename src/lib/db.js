@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 
 export async function connectToMongoDB() {
   try {
-    const uri = process.env.DB_URL;
+    const uri = process.env.MONGODB_URI;
     if (!uri) {
       throw new Error('DB_URL is not defined');
     }
