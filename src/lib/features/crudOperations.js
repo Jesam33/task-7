@@ -1,13 +1,20 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import axios from "axios";
 
+// Thunk for creating a new todo
 export const createTodo = createAsyncThunk(
   "todoOperations/create",
   async (todo) => {
     try {
+      // Validate that `todo` is a non-empty string
+      if (typeof todo !== 'string' || !todo.trim()) {
+        throw new Error("Invalid input: 'todo' is required and should be a non-empty string");
+        console.log(todo);
+      }
+
       const response = await axios.post(
         "/api/todo",
-        { todo },
+        { todo }, // Ensure that the API expects `{ todo }`
         {
           headers: {
             "Content-Type": "application/json",
@@ -22,6 +29,7 @@ export const createTodo = createAsyncThunk(
   }
 );
 
+// Thunk for fetching todos
 export const getTodo = createAsyncThunk("todoOperations/get", async () => {
   try {
     const response = await axios.get("/api/todos");
@@ -31,13 +39,14 @@ export const getTodo = createAsyncThunk("todoOperations/get", async () => {
   }
 });
 
+// Thunk for editing a todo
 export const editTodo = createAsyncThunk(
   "todoOperations/edit",
   async (change) => {
     try {
       const response = await axios.patch(
         `/api/todos/${change.editId}`,
-        { todo: change.editedValue },
+        { todo: change.editedValue }, // Ensure this matches your API's expected payload
         {
           headers: {
             "Content-Type": "application/json",
@@ -52,6 +61,7 @@ export const editTodo = createAsyncThunk(
   }
 );
 
+// Thunk for deleting a todo
 export const deleteTodo = createAsyncThunk(
   "todoOperations/delete",
   async (id) => {
@@ -69,11 +79,12 @@ export const deleteTodo = createAsyncThunk(
   }
 );
 
+// Thunk for completing a todo
 export const completeTodo = createAsyncThunk(
   "todoOperations/complete",
   async (id) => {
     try {
-      const response = await axios.patch(`/api/complete/${id}`, {
+      const response = await axios.patch(`/api/complete/${id}`, {}, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -85,6 +96,7 @@ export const completeTodo = createAsyncThunk(
   }
 );
 
+// Slice for CRUD operations
 const crudOperations = createSlice({
   name: "crudTodo",
   initialState: {
