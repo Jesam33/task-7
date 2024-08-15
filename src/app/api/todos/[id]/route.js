@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Todo from "@/model/todoModel";
 import mongoose from "mongoose";
 
 export async function PATCH(req) {
@@ -12,7 +11,6 @@ export async function PATCH(req) {
 
     const body = await req.json();
 
-    // Validate the request body
     if (body.todo === undefined && body.completed === undefined) {
       return NextResponse.json({
         status: 400,
@@ -20,23 +18,13 @@ export async function PATCH(req) {
       });
     }
 
-    // Ensure database connection is ready
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000, // 5 seconds timeout
-      });
-    }
+    const updateFields = {};
+    if (body.todo !== undefined) updateFields.todo = body.todo;
+    if (body.completed !== undefined) updateFields.completed = body.completed;
 
-    // Build update object
-    const update = {};
-    if (body.todo !== undefined) update.todo = body.todo;
-    if (body.completed !== undefined) update.completed = body.completed;
-
-    const updatedTodo = await Todo.findByIdAndUpdate(
-      id,
-      update,
-      { new: true } // Return the updated document
-    );
+    const updatedTodo = await Todo.findByIdAndUpdate(id, updateFields, {
+      new: true,
+    });
 
     if (!updatedTodo) {
       return NextResponse.json({ status: 404, message: "Todo not found" });
@@ -44,7 +32,7 @@ export async function PATCH(req) {
 
     return NextResponse.json({ status: 200, data: updatedTodo });
   } catch (error) {
-    console.error("Error editing todo:", error);
+    console.error("Error updating todo:", error);
     return NextResponse.json({
       status: 500,
       message: error.message || "Internal Server Error",
