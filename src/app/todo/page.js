@@ -9,8 +9,8 @@ import {
   todos,
 } from "@/lib/features/crudOperations";
 import { useEffect, useState } from "react";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function AddTodo() {
   const [isModalOpen, setModalOpen] = useState(false);
@@ -22,6 +22,15 @@ export default function AddTodo() {
   useEffect(() => {
     dispatch(getTodo());
   }, [dispatch]);
+
+  // Listen to changes in response state and show appropriate toast messages
+  useEffect(() => {
+    if (response?.status === 200) {
+      toast.success(response.message || "Action completed successfully");
+    } else if (response?.status === 400 || response?.status === 404) {
+      toast.error(response?.message || "An error occurred");
+    }
+  }, [response]);
 
   if (status === "loading" || status === "idle") {
     return (
@@ -54,42 +63,33 @@ export default function AddTodo() {
       toast.error("You can't have an empty todo");
       return;
     }
-    dispatch(editTodo({ editedValue, editId }));
+    const resultAction = dispatch(editTodo({ editedValue, editId }));
+    
+    // Check if dispatch was successful
+    resultAction.then(result => {
+      if (editTodo.fulfilled.match(result)) {
+        toast.success("Todo edited successfully");
+      } else {
+        toast.error(result.payload.error || "An error occurred");
+      }
+    });
     setModalOpen(false);
-
-    if (response?.status === 200) {
-      toast.success("Todo edited successfully");
-    } else if (response?.status === 400 || response?.status === 404) {
-      toast.error(response?.message || "An error occurred");
-    }
   }
+  
 
   function handleDelete(e) {
     dispatch(deleteTodo(e.target.closest("li").id));
-    
-    if (response?.status === 200) {
-      toast.success("Deleted successfully");
-    } else if (response?.status === 400 || response?.status === 404) {
-      toast.error(response?.message || "An error occurred");
-    }
   }
 
   function handleComplete(e) {
     dispatch(completeTodo(e.target.closest("li").id));
-    
-    if (response?.status === 200) {
-      toast.success("Todo marked as completed successfully");
-    } else if (response?.status === 400 || response?.status === 404) {
-      toast.error(response?.message || "An error occurred");
-    }
   }
 
   return (
     <main className="p-8">
-      {/* ToastContainer should be rendered once in the app */}
       <ToastContainer />
 
-      {isModalOpen ? (
+      {isModalOpen && (
         <div className="fixed inset-0 backdrop-blur-sm w-screen h-screen z-50 flex items-center justify-center">
           <form
             className="flex flex-col gap-5 w-[600px] bg-white p-5 rounded-lg shadow-lg"
@@ -126,19 +126,13 @@ export default function AddTodo() {
             </button>
           </form>
         </div>
-      ) : null}
-      {/* <p className="text-white my-5 md:text-left text-center">
-        Note: Red circle means{" "}
-        <span className="text-todo-red">&apos;Not Completed&apos;</span> while
-        Green Circle{" "}
-        <span className="text-todo-green">&apos;Completed&apos;</span>
-      </p> */}
+      )}
       <ul className="flex flex-col gap-5">
         {todoItems?.data?.length > 0 ? (
           todoItems.data.map((todo, index) => (
             <Todo
-              key={index}
-              id={todo._id}
+              key={todo.id}
+              id={todo.id}
               todo={todo.todo}
               completed={todo.completed}
               handleEdit={(e) => {

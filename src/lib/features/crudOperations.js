@@ -1,39 +1,46 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import axios from "axios";
+
+// Utility functions for handling local storage
+const loadTodosFromLocalStorage = () => {
+  const todos = localStorage.getItem("todos");
+  return todos ? JSON.parse(todos) : [];
+};
+
+const saveTodosToLocalStorage = (todos) => {
+  localStorage.setItem("todos", JSON.stringify(todos));
+};
 
 // Thunk for creating a new todo
 export const createTodo = createAsyncThunk(
   "todoOperations/create",
   async (todo) => {
     try {
-      // Validate that `todo` is a non-empty string
       if (typeof todo !== 'string' || !todo.trim()) {
         throw new Error("Invalid input: 'todo' is required and should be a non-empty string");
-        console.log(todo);
       }
 
-      const response = await axios.post(
-        "/api/todo",
-        { todo }, // Ensure that the API expects `{ todo }`
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          timeout: 20000,
-        }
-      );
-      return response.data;
+      const todos = loadTodosFromLocalStorage();
+      const newTodo = {
+        id: Date.now().toString(), // Create a unique ID
+        todo,
+        completed: false,
+      };
+      todos.push(newTodo);
+      saveTodosToLocalStorage(todos);
+
+      console.log("Created Todo:", newTodo); // Logging the newly created todo
+
+      return newTodo;
     } catch (error) {
       return { error: error.message };
     }
   }
 );
 
-// Thunk for fetching todos
 export const getTodo = createAsyncThunk("todoOperations/get", async () => {
   try {
-    const response = await axios.get("/api/todos");
-    return response.data;
+    const todos = loadTodosFromLocalStorage();
+    return { data: todos };
   } catch (error) {
     return { error: error.message };
   }
@@ -44,53 +51,72 @@ export const editTodo = createAsyncThunk(
   "todoOperations/edit",
   async (change) => {
     try {
-      const response = await axios.patch(
-        `/api/todos/${change.editId}`,
-        { todo: change.editedValue }, // Ensure this matches your API's expected payload
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          timeout: 20000,
-        }
-      );
-      return response.data;
+      const todos = loadTodosFromLocalStorage();
+      const index = todos.findIndex(todo => todo.id === change.editId);
+
+      if (index !== -1) {
+        todos[index].todo = change.editedValue;
+        saveTodosToLocalStorage(todos);
+        return todos[index];
+      } else {
+        throw new Error("Todo not found with the provided ID");
+      }
     } catch (error) {
       return { error: error.message };
     }
   }
 );
+
+
 
 // Thunk for deleting a todo
 export const deleteTodo = createAsyncThunk(
   "todoOperations/delete",
   async (id) => {
     try {
-      const response = await axios.delete(`/api/todo/${id}`, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-      });
-      return response.data;
+      let todos = loadTodosFromLocalStorage();
+
+      console.log("Deleting Todo ID:", id); // Debugging line
+      console.log("Available Todos:", todos); // Debugging line
+
+      const index = todos.findIndex((todo) => todo.id === id);
+
+      if (index !== -1) {
+        todos.splice(index, 1);
+        saveTodosToLocalStorage(todos);
+        return { id };
+      } else {
+        throw new Error("Todo not found");
+      }
     } catch (error) {
       return { error: error.message };
     }
   }
 );
 
+
 // Thunk for completing a todo
 export const completeTodo = createAsyncThunk(
   "todoOperations/complete",
   async (id) => {
     try {
-      const response = await axios.patch(`/api/complete/${id}`, {}, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      return response.data;
+      console.log("Complete Request for ID:", id); // Log the ID for completion
+
+      const todos = loadTodosFromLocalStorage();
+      console.log("Todos in Local Storage:", todos); // Log all todos
+
+      const index = todos.findIndex((todo) => todo.id === id);
+
+      if (index !== -1) {
+        todos[index].completed = !todos[index].completed;
+        saveTodosToLocalStorage(todos);
+        console.log("Completed Todo:", todos[index]); // Log the completed todo
+        return todos[index];
+      } else {
+        throw new Error("Todo not found");
+      }
     } catch (error) {
+      console.error("Complete Error:", error.message); // Log any errors
       return { error: error.message };
     }
   }
@@ -140,22 +166,17 @@ const crudOperations = createSlice({
       })
       .addCase(editTodo.fulfilled, (state, action) => {
         state.status = "succeeded";
-        if (action.payload.error) {
-          state.error = action.payload.error;
+        const index = state.todoItems.data.findIndex(todo => todo.id === action.payload.id);
+        if (index !== -1) {
+          state.todoItems.data[index] = action.payload;
         } else {
-          state.response = action.payload;
-          // Update todoItems after successful edit:
-          const index = state.todoItems.data.findIndex(
-            (todo) => todo._id === action.meta.arg.editId
-          );
-          if (index !== -1) {
-            state.todoItems.data[index].todo = action.meta.arg.editedValue;
-          }
+          console.error("Todo not found with ID:", action.payload.id);
         }
       })
+      
       .addCase(editTodo.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       })
       .addCase(deleteTodo.pending, (state) => {
         state.status = "loading";
@@ -166,16 +187,16 @@ const crudOperations = createSlice({
           state.error = action.payload.error;
         } else {
           state.response = action.payload;
-          // Update todoItems after successful delete:
           state.todoItems.data = state.todoItems.data.filter(
-            (todo) => todo._id !== action.meta.arg
+            (todo) => todo.id !== action.payload.id
           );
         }
       })
       .addCase(deleteTodo.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       })
+      // Note: Don't put a semicolon here. Just continue with the next case.
       .addCase(completeTodo.pending, (state) => {
         state.status = "loading";
       })
@@ -185,9 +206,8 @@ const crudOperations = createSlice({
           state.error = action.payload.error;
         } else {
           state.response = action.payload;
-          // Update todoItems after successful completion:
           const index = state.todoItems.data.findIndex(
-            (todo) => todo._id === action.meta.arg
+            (todo) => todo.id === action.meta.arg
           );
           if (index !== -1) {
             state.todoItems.data[index].completed =
@@ -197,7 +217,7 @@ const crudOperations = createSlice({
       })
       .addCase(completeTodo.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       });
   },
 });

@@ -13,7 +13,7 @@ export async function PATCH(req) {
     const body = await req.json();
 
     // Validate the request body
-    if (body.todo === undefined) {
+    if (body.todo === undefined && body.completed === undefined) {
       return NextResponse.json({
         status: 400,
         message: "Invalid input: 'todo' or 'completed' is required",
@@ -27,12 +27,15 @@ export async function PATCH(req) {
       });
     }
 
+    // Build update object
+    const update = {};
+    if (body.todo !== undefined) update.todo = body.todo;
+    if (body.completed !== undefined) update.completed = body.completed;
+
     const updatedTodo = await Todo.findByIdAndUpdate(
       id,
-      {
-        todo: body.todo,
-      },
-      { new: true }
+      update,
+      { new: true } // Return the updated document
     );
 
     if (!updatedTodo) {

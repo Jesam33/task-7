@@ -1,7 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
-import Todo from "@/model/todoModel";
-import mongoose from "mongoose";
-
 export async function POST(req) {
   try {
     // Parse the request body
@@ -15,15 +11,11 @@ export async function POST(req) {
       });
     }
 
-    // Ensure database connection is ready
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000, // 5 seconds timeout
-      });
-    }
+    // Retrieve the current todos from local storage
+    let todos = JSON.parse(localStorage.getItem("todos")) || [];
 
     // Check for existing todo
-    const alreadyExisting = await Todo.findOne({ todo: body.todo });
+    const alreadyExisting = todos.find((todo) => todo.todo === body.todo);
 
     if (alreadyExisting) {
       return NextResponse.json({
@@ -32,14 +24,18 @@ export async function POST(req) {
       });
     }
 
-    // Create a new Todo instance
-    const newTodo = new Todo({
+    // Create a new todo object
+    const newTodo = {
+      id: Date.now().toString(), // Generate a unique ID
       todo: body.todo,
       completed: false,
-    });
+    };
 
-    // Save the new Todo
-    await newTodo.save();
+    // Add the new todo to the array
+    todos.push(newTodo);
+
+    // Save the updated todos array to local storage
+    localStorage.setItem("todos", JSON.stringify(todos));
 
     // Return a successful response
     return NextResponse.json({ status: 201, data: newTodo });

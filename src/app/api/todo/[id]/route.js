@@ -1,27 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
-import Todo from "@/model/todoModel";
-import mongoose from "mongoose";
-
 export async function DELETE(req) {
   try {
     const url = new URL(req.url);
-    const id = url.pathname.split("/").pop();
+    const id = url.pathname.split("/").pop(); // Extract the ID from the URL
+    
     if (!id) {
       return NextResponse.json({ status: 400, message: "ID is required" });
     }
 
-    // Ensure database connection is ready
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000, // 5 seconds timeout
-      });
-    }
+    // Retrieve the current todos from local storage
+    let todos = JSON.parse(localStorage.getItem("todos")) || [];
 
-    const deletedTodo = await Todo.findOneAndDelete({ _id: id });
+    // Find the todo to delete
+    const todoIndex = todos.findIndex((todo) => todo.id === id);
 
-    if (!deletedTodo) {
+    if (todoIndex === -1) {
       return NextResponse.json({ status: 404, message: "Todo not found" });
     }
+
+    // Remove the todo from the array
+    const deletedTodo = todos.splice(todoIndex, 1)[0];
+
+    // Update local storage with the remaining todos
+    localStorage.setItem("todos", JSON.stringify(todos));
 
     return NextResponse.json({ status: 200, data: deletedTodo });
   } catch (error) {
